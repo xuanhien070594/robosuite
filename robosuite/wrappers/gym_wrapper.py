@@ -53,14 +53,28 @@ class GymWrapper(Wrapper, Env):
         self.env.spec = None
         self.metadata = None
 
-        # set up observation and action spaces
+        # set up observation space
         obs = self.env.reset()
-        self.modality_dims = {key: obs[key].shape for key in self.keys}
-        flat_ob = self._flatten_obs(obs)
-        self.obs_dim = flat_ob.size
-        high = np.inf * np.ones(self.obs_dim)
-        low = -high
-        self.observation_space = spaces.Box(low=low, high=high)
+
+        if "achieved_goal" in obs:
+            # if environment uses HER buffer, observation also includes desired goal and achieve goal attributes
+            self.modality_dims = {key: obs["observation"][key].shape for key in self.keys}
+            flat_obs = self._flatten_obs(obs["observation"])
+            self.obs_dim = flat_obs.size
+
+            self.observation_space = spaces.Dict(
+                dict(
+                    desired_goal=spaces.Box(-np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float32"),
+                    achieved_goal=spaces.Box(-np.inf, np.inf, shape=obs["achieved_goal"].shape, dtype="float32"),
+                    observation=spaces.Box(-np.inf, np.inf, shape=flat_obs.shape, dtype="float32"),
+                )
+            )
+        else:
+            self.modality_dims = {key: obs[key].shape for key in self.keys}
+            self.obs_dim = self._flatten_obs(obs).size
+            self.observation_space = spaces.Box(-np.inf, np.inf, self._flatten_obs(obs).shape, dtype="float32")
+
+        # set up action space
         low, high = self.env.action_spec
         self.action_space = spaces.Box(low=low, high=high)
 
@@ -91,6 +105,10 @@ class GymWrapper(Wrapper, Env):
             np.array: Flattened environment observation space after reset occurs
         """
         ob_dict = self.env.reset()
+
+        if "achieved_goal" in ob_dict:
+            ob_dict["observation"] = self._flatten_obs(ob_dict["observation"])
+            return ob_dict
         return self._flatten_obs(ob_dict)
 
     def step(self, action):
@@ -109,6 +127,11 @@ class GymWrapper(Wrapper, Env):
                 - (dict) misc information
         """
         ob_dict, reward, done, info = self.env.step(action)
+
+        # special care when environment is using HER buffer
+        if "achieved_goal" in ob_dict:
+            ob_dict["observation"] = self._flatten_obs(ob_dict["observation"])
+            return ob_dict, reward, done, info
         return self._flatten_obs(ob_dict), reward, done, info
 
     def seed(self, seed=None):
@@ -129,16 +152,27 @@ class GymWrapper(Wrapper, Env):
                 TypeError("Seed must be an integer type!")
 
     def compute_reward(self, achieved_goal, desired_goal, info):
-        """
-        Dummy function to be compatible with gym interface that simply returns environment reward
+        """Compute the step reward. This externalizes the reward function and makes
+        it dependent on a desired goal and the one that was achieved. If you wish to include
+        additional rewards that are independent of the goal, you can include the necessary values
+        to derive it in 'info' and compute it accordingly.
+
+        If the environment does not employ Hindsight Experience Replay (HER), the function will just
+        return reward computed by self.env.reward()
 
         Args:
-            achieved_goal: [NOT USED]
-            desired_goal: [NOT USED]
-            info: [NOT USED]
+            achieved_goal (object): the goal that was achieved during execution
+            desired_goal (object): the desired goal that we asked the agent to attempt to achieve
+            info (dict): an info dictionary with additional information
 
         Returns:
-            float: environment reward
+            float: The reward that corresponds to the provided achieved goal w.r.t. to the desired
+            goal. Note that the following should always hold true:
+
+                ob, reward, done, info = env.step()
+                assert reward == env.compute_reward(ob['achieved_goal'], ob['desired_goal'], info)
         """
-        # Dummy args used to mimic Wrapper interface
-        return self.env.reward()
+        if hasattr(self.env, "compute_reward"):  # using HER data
+            return self.env.compute_reward(achieved_goal, desired_goal, info)
+        else:
+            return self.env.reward()
