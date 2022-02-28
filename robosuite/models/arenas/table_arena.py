@@ -12,6 +12,7 @@ class TableArena(Arena):
     Args:
         table_full_size (3-tuple): (L,W,H) full dimensions of the table
         table_friction (3-tuple): (sliding, torsional, rolling) friction parameters of the table
+        table_solref (2-tuple): (stiffness, damping) parameters of the table
         table_offset (3-tuple): (x,y,z) offset from center of arena when placing table.
             Note that the z value sets the upper limit of the table
         has_legs (bool): whether the table has legs or not
@@ -22,6 +23,7 @@ class TableArena(Arena):
         self,
         table_full_size=(0.8, 0.8, 0.05),
         table_friction=(1, 0.005, 0.0001),
+        table_solref=(-5000, -50),
         table_offset=(0, 0, 0.8),
         has_legs=True,
         xml="arenas/table_arena.xml",
@@ -31,6 +33,7 @@ class TableArena(Arena):
         self.table_full_size = np.array(table_full_size)
         self.table_half_size = self.table_full_size / 2
         self.table_friction = table_friction
+        self.table_solref = table_solref
         self.table_offset = table_offset
         self.center_pos = self.bottom_pos + np.array([0, 0, -self.table_half_size[2]]) + self.table_offset
 
@@ -56,6 +59,7 @@ class TableArena(Arena):
         self.table_body.set("pos", array_to_string(self.center_pos))
         self.table_collision.set("size", array_to_string(self.table_half_size))
         self.table_collision.set("friction", array_to_string(self.table_friction))
+        self.table_collision.set("solref", array_to_string(self.table_solref))
         self.table_visual.set("size", array_to_string(self.table_half_size))
 
         self.table_top.set("pos", array_to_string(np.array([0, 0, self.table_half_size[2]])))
