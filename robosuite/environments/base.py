@@ -456,10 +456,30 @@ class MujocoEnv(metaclass=EnvMeta):
         """
         raise NotImplementedError
 
-    def render(self):
+    def render(self, **kwargs):
         """
         Renders to an on-screen window.
         """
+        # at the current implementation, we can only record videos in off-screen rendering mode
+        if not self.has_renderer:
+            width = 500 # unit is pixel
+            height = 500
+            camera_id = 0
+
+            if "image_width" in kwargs:
+                width = kwargs["image_width"]
+
+            if "image_height" in kwargs:
+                height = kwargs["image_height"]
+
+            if "camera_id" in kwargs:
+                camera_id = kwargs["camera_id"]
+
+            self.sim._render_context_offscreen.render(width, height, camera_id=camera_id)
+            data = self.sim._render_context_offscreen.read_pixels(width, height, depth=False)
+            # original image is upside-down, so flip it
+            return data[::-1, :, :]
+
         self.viewer.render()
 
     def get_pixel_obs(self):

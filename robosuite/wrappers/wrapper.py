@@ -61,14 +61,14 @@ class Wrapper:
         """
         return self.env.reset()
 
-    def render(self, **kwargs):
+    def render(self, mode="human", **kwargs):
         """
         By default, run the normal environment render() function
 
         Args:
             **kwargs (dict): Any args to pass to environment render function
         """
-        return self.env.render(**kwargs)
+        return self.env.render(mode="human", **kwargs)
 
     def observation_spec(self):
         """
