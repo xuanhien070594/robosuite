@@ -464,7 +464,7 @@ class MujocoEnv(metaclass=EnvMeta):
         if not self.has_renderer:
             width = 500 # unit is pixel
             height = 500
-            camera_id = 0
+            camera_id = -1
 
             if "image_width" in kwargs:
                 width = kwargs["image_width"]
@@ -537,6 +537,18 @@ class MujocoEnv(metaclass=EnvMeta):
             self.viewer.set_camera_pos_quat(camera_pos, camera_quat)
         else:
             raise AttributeError("setting camera position and quat requires renderer to be either NVISII or iGibson.")
+
+    def set_camera_mujoco(self, distance, azimuth, lookat, elevation):
+        """Set parameters for current camera in Mujoco rendering."""
+        if self.renderer != "mujoco":
+            raise AttributeError("this function is only used for Mujoco renderer")
+
+        self.sim.render_contexts[0].cam.distance = distance
+        self.sim.render_contexts[0].cam.azimuth = azimuth
+        self.sim.render_contexts[0].cam.lookat[0] = lookat[0]
+        self.sim.render_contexts[0].cam.lookat[1] = lookat[1]
+        self.sim.render_contexts[0].cam.lookat[2] = lookat[2]
+        self.sim.render_contexts[0].cam.elevation = elevation
 
     def reset_from_xml_string(self, xml_string):
         """

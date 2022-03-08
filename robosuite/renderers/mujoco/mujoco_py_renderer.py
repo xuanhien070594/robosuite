@@ -65,6 +65,7 @@ class MujocoPyRenderer:
 
         Args:
             camera_id (int): id of the camera to set the current viewer to
+            kwargs: extra settings for camera
         """
         self.viewer.cam.fixedcamid = camera_id
         self.viewer.cam.type = const.CAMERA_FIXED
